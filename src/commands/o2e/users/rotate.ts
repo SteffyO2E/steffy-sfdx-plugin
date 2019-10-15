@@ -51,12 +51,7 @@ export default class Org extends SfdxCommand {
     
     if (resultDeactivateUser.records && resultDeactivateUser.records[0].IsActive == false) {
        throw new SfdxError(messages.getMessage('errorCannotUpdateStatus', [this.flags.deactivate,"Inactive"]));
-    }
-
-    resultDeactivateUser.records[0].IsActive = false;
-    if (resultDeactivateUser.records[0].Id) {
-        opResult = await connection.sobject('User').update(resultDeactivateUser.records[0]);
-    }
+    }    
 
     const queryGetActivateUser = 'Select Id, IsActive From User Where username = \'' + this.flags.activate + '\'';
     const resultActivateUser = await connection.query<o2eUsers>(queryGetActivateUser);
@@ -69,11 +64,16 @@ export default class Org extends SfdxCommand {
        throw new SfdxError(messages.getMessage('errorCannotUpdateStatus', [this.flags.activate,"Active"]));
     }
 
+    resultDeactivateUser.records[0].IsActive = false;
+    if (resultDeactivateUser.records[0].Id) {
+        opResult = await connection.sobject('User').update(resultDeactivateUser.records[0]);
+    }
+
     resultActivateUser.records[0].IsActive = true;
     if (resultActivateUser.records[0].Id) {
         opResult = await connection.sobject('User').update(resultActivateUser.records[0]);
     }
-  
+
     // Return an object to be displayed with --json
     return { orgId: this.org.getOrgId(), 
         DeactivateUser: [ 

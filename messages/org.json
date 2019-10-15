@@ -1,7 +1,9 @@
 {
   "commandDescription": "print a greeting and your org IDs",
   "deactivateFlagDescription": "email address of user to be deactivated",
-  "activateFlagDescription": "email address of user to be activated",  
+  "activateFlagDescription": "email address of user to be activated",
+  "accountFlagDescription": "email address of user to add/remove Click license.",
+  "modeFlagDescription": "mode: add or remove - indicate whether add or remove Click license from user.",
   "nameFlagDescription": "name to print",
   "forceFlagDescription": "example boolean flag",
   "errorNoUsers": "User '%s' cannot be found.  Please check the user email address.",
