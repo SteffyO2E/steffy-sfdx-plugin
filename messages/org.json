@@ -1,0 +1,9 @@
+{
+  "commandDescription": "print a greeting and your org IDs",
+  "deactivateFlagDescription": "email address of user to be deactivated",
+  "activateFlagDescription": "email address of user to be activated",  
+  "nameFlagDescription": "name to print",
+  "forceFlagDescription": "example boolean flag",
+  "errorNoUsers": "User '%s' cannot be found.  Please check the user email address.",
+  "errorCannotUpdateStatus": "The current status of user '%s' is '%s'.  Please provide another user email address for deactivation."
+}
