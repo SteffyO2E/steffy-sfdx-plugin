@@ -35,7 +35,8 @@ export default class Org extends SfdxCommand {
         IsActive: boolean;
     }
 
-    let opResult;
+    let opDeactivateResult;
+    let opActivateResult;
 
     // this.org is guaranteed because requiresUsername=true, as opposed to supportsUsername
     const connection = await Connection.create({
@@ -66,55 +67,26 @@ export default class Org extends SfdxCommand {
 
     resultDeactivateUser.records[0].IsActive = false;
     if (resultDeactivateUser.records[0].Id) {
-        opResult = await connection.sobject('User').update(resultDeactivateUser.records[0]);
+        opDeactivateResult = await connection.sobject('User').update(resultDeactivateUser.records[0]);
     }
 
     resultActivateUser.records[0].IsActive = true;
     if (resultActivateUser.records[0].Id) {
-        opResult = await connection.sobject('User').update(resultActivateUser.records[0]);
+        opActivateResult = await connection.sobject('User').update(resultActivateUser.records[0]);
     }
 
     // Return an object to be displayed with --json
     return { orgId: this.org.getOrgId(), 
         DeactivateUser: [ 
-            {Id: resultDeactivateUser.records[0].Id,
-            Email: this.flags.deactivate,
-            IsActive: resultDeactivateUser.records[0].IsActive 
+            {user: this.flags.deactivate,
+            result: opDeactivateResult
             }
         ],
         ActivateUser: [ 
-            {Id: resultActivateUser.records[0].Id,
-            Email: this.flags.activate,
-            IsActive: resultActivateUser.records[0].IsActive  
+            {user: this.flags.activate,
+            result: opActivateResult
             }
         ]
     };
   }
-
-//   private async validateUser(userEmail: string, userNewStatus: boolean) {
-//     // The type we are querying for
-//     interface o2eUsers {
-//         Id: string;
-//         Name: string;
-//         IsActive: boolean;
-//     }
-    
-//     const conn = this.org.getConnection();
-//     const query = 'Select Id, Name, IsActive From User Where username = \'' + userEmail + '\'';
-
-//     this.ux.log(query);
-
-//     const resultUser = await conn.query<o2eUsers>(query);
-
-//     if (!resultUser.records || resultUser.records.length <= 0) {
-//         throw new SfdxError(messages.getMessage('errorNoUsers', [userEmail]));
-//     }
-
-//     if (resultUser.records[0].IsActive == userNewStatus) {
-//         let status = (userNewStatus) ? "activated":"deactivated";
-//         throw new SfdxError(messages.getMessage('errorCannotUpdateStatus', [userEmail,status]));
-//     }
-
-//     return true;
-//   };
 }

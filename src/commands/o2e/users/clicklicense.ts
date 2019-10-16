@@ -16,7 +16,7 @@ export default class Org extends SfdxCommand {
   protected static flagsConfig = {
     // flag with a value (-n, --name=VALUE)
     account: flags.string({char: 'a', description: messages.getMessage('accountFlagDescription')}),
-    mode: flags.string({char: 'm', description: messages.getMessage('activateFlagDescription')})
+    mode: flags.string({char: 'm', description: messages.getMessage('modeFlagDescription')})
   };
 
   // Comment this out if your command does not require an org username
@@ -31,8 +31,13 @@ export default class Org extends SfdxCommand {
   public async run(): Promise<AnyJson> {
 
     interface o2eUsers {
-        Id: string;       
-        IsActive: boolean;
+      Id: string;
+    }
+
+    interface clickLicense {
+        Id?: string;
+        userId: string;
+        packageLicenseId: string;
     }
 
     let opResult;
@@ -42,52 +47,34 @@ export default class Org extends SfdxCommand {
         authInfo: await AuthInfo.create({ username: this.flags.targetusername })
       });
     
-    const queryGetDeactivateUser = 'Select Id, IsActive From User Where username = \'' + this.flags.account + '\'';
-    const resultDeactivateUser = await connection.query<o2eUsers>(queryGetDeactivateUser);
+    const queryUser = 'Select Id From User Where username = \'' + this.flags.account + '\'';
+    const resultUser = await connection.query<o2eUsers>(queryUser);
        
-    if (!resultDeactivateUser.records || resultDeactivateUser.records.length <= 0) {
-       throw new SfdxError(messages.getMessage('errorNoUsers', [this.flags.deactivate]));
+    if (!resultUser.records || resultUser.records.length <= 0) {
+       throw new SfdxError(messages.getMessage('errorNoUsers', [this.flags.account]));
     }
     
-    if (resultDeactivateUser.records && resultDeactivateUser.records[0].IsActive == false) {
-       throw new SfdxError(messages.getMessage('errorCannotUpdateStatus', [this.flags.deactivate,"Inactive"]));
-    }    
+    if (this.flags.mode == 'add') {
+      var newLicense:clickLicense = {userId:resultUser.records[0].Id,packageLicenseId:"05015000000EqUmAAK"}
 
-    const queryGetActivateUser = 'Select Id, IsActive From User Where username = \'' + this.flags.activate + '\'';
-    const resultActivateUser = await connection.query<o2eUsers>(queryGetActivateUser);
-       
-    if (!resultActivateUser.records || resultActivateUser.records.length <= 0) {
-       throw new SfdxError(messages.getMessage('errorNoUsers', [this.flags.activate]));
+      opResult = await connection.sobject('UserPackageLicense').create(newLicense);
     }
-    
-    if (resultActivateUser.records && resultActivateUser.records[0].IsActive == true) {
-       throw new SfdxError(messages.getMessage('errorCannotUpdateStatus', [this.flags.activate,"Active"]));
-    }
+    else if (this.flags.mode == 'remove') {
+      const queryLicense = 'Select Id From UserPackageLicense Where userId = \'' + resultUser.records[0].Id + '\'';
+      const resultLicense = await connection.query<clickLicense>(queryLicense);
 
-    resultDeactivateUser.records[0].IsActive = false;
-    if (resultDeactivateUser.records[0].Id) {
-        opResult = await connection.sobject('User').update(resultDeactivateUser.records[0]);
-    }
+      if (!resultLicense.records || resultLicense.records.length <= 0) {
+        throw new SfdxError(messages.getMessage('errorNoLicenseToRemove', [this.flags.account]));
+      }
 
-    resultActivateUser.records[0].IsActive = true;
-    if (resultActivateUser.records[0].Id) {
-        opResult = await connection.sobject('User').update(resultActivateUser.records[0]);
+      opResult = await connection.sobject('UserPackageLicense').delete(resultLicense.records[0].Id);
     }
 
     // Return an object to be displayed with --json
     return { orgId: this.org.getOrgId(), 
-        DeactivateUser: [ 
-            {Id: resultDeactivateUser.records[0].Id,
-            Email: this.flags.deactivate,
-            IsActive: resultDeactivateUser.records[0].IsActive 
-            }
-        ],
-        ActivateUser: [ 
-            {Id: resultActivateUser.records[0].Id,
-            Email: this.flags.activate,
-            IsActive: resultActivateUser.records[0].IsActive  
-            }
-        ]
+        user: this.flags.account,
+        mode: this.flags.mode,
+        result: opResult
     };
   }
 }
