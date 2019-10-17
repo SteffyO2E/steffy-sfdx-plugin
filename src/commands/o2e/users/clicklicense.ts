@@ -54,15 +54,19 @@ export default class Org extends SfdxCommand {
        throw new SfdxError(messages.getMessage('errorNoUsers', [this.flags.account]));
     }
     
+    const queryLicense = 'Select Id From UserPackageLicense Where userId = \'' + resultUser.records[0].Id + '\'';
+    const resultLicense = await connection.query<clickLicense>(queryLicense);
+
     if (this.flags.mode == 'add') {
+      if (resultLicense.records.length > 0) {
+        throw new SfdxError(messages.getMessage('errorCannotAddClickLicense', [this.flags.account]));
+      }
+
       var newLicense:clickLicense = {userId:resultUser.records[0].Id,packageLicenseId:"05015000000EqUmAAK"}
 
       opResult = await connection.sobject('UserPackageLicense').create(newLicense);
     }
     else if (this.flags.mode == 'remove') {
-      const queryLicense = 'Select Id From UserPackageLicense Where userId = \'' + resultUser.records[0].Id + '\'';
-      const resultLicense = await connection.query<clickLicense>(queryLicense);
-
       if (!resultLicense.records || resultLicense.records.length <= 0) {
         throw new SfdxError(messages.getMessage('errorNoLicenseToRemove', [this.flags.account]));
       }
