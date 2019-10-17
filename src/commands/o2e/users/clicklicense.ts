@@ -57,12 +57,15 @@ export default class Org extends SfdxCommand {
     const queryLicense = 'Select Id From UserPackageLicense Where userId = \'' + resultUser.records[0].Id + '\'';
     const resultLicense = await connection.query<clickLicense>(queryLicense);
 
+    const queryPkgLicense = 'SELECT Id FROM PackageLicense WHERE NamespacePrefix = \'CKSW_SRVC\'';
+    const resultPkgLicense = await connection.query<clickLicense>(queryPkgLicense);
+    
     if (this.flags.mode == 'add') {
       if (resultLicense.records.length > 0) {
         throw new SfdxError(messages.getMessage('errorCannotAddClickLicense', [this.flags.account]));
       }
 
-      var newLicense:clickLicense = {userId:resultUser.records[0].Id,packageLicenseId:"05015000000EqUmAAK"}
+      var newLicense:clickLicense = {userId:resultUser.records[0].Id,packageLicenseId:resultPkgLicense.records[0].Id};
 
       opResult = await connection.sobject('UserPackageLicense').create(newLicense);
     }
