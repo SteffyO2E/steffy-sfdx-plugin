@@ -6,8 +6,12 @@
   "modeFlagDescription": "add or remove - indicate whether add or remove Click license from user.",
   "nameFlagDescription": "name to print",
   "forceFlagDescription": "example boolean flag",
+  "objectFlagDescription": "Object to update: Account|Contact|Lead",
+  "fieldFlagDescription": "API name of the email field to update.",
   "errorNoUsers": "User '%s' cannot be found.  Please check the user email address.",
   "errorCannotUpdateStatus": "The current status of user '%s' is '%s'.  Please provide another user email address.",
   "errorNoLicenseToRemove" : "No Click License to remove for user '%s'",
-  "errorCannotAddClickLicense": "User '%s' already has Click Lisense assigned."
+  "errorCannotAddClickLicense": "User '%s' already has Click Lisense assigned.",
+  "errorCannotRunPluginInProd": "Cannot run plugin in Prod.",
+  "errorInvalidObject": "Invalid object."
 }
