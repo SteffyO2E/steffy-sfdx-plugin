@@ -13,5 +13,7 @@
   "errorNoLicenseToRemove" : "No Click License to remove for user '%s'",
   "errorCannotAddClickLicense": "User '%s' already has Click Lisense assigned.",
   "errorCannotRunPluginInProd": "Cannot run plugin in Prod.",
-  "errorInvalidObject": "Invalid object."
+  "errorInvalidObject": "Invalid object.",
+  "errorInvalidField": "Invalid field.",
+  "errorInvalidAuthUser": "Invalid Login."
 }

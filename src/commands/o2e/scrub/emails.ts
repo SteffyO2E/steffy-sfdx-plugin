@@ -1,6 +1,8 @@
 import { flags, SfdxCommand } from '@salesforce/command';
-import { Messages, SfdxError, AuthInfo, Connection } from '@salesforce/core';
+import { Messages, SfdxError, AuthFields } from '@salesforce/core';
 import { AnyJson } from '@salesforce/ts-types';
+import { Connection } from 'jsforce';
+import { isNullOrUndefined } from 'util';
 
 // Initialize Messages with the current plugin directory
 Messages.importMessagesDirectory(__dirname);
@@ -29,57 +31,101 @@ export default class Org extends SfdxCommand {
   protected static requiresProject = false;
 
   public async run(): Promise<AnyJson> {
+    const jsforce = require('jsforce');
+
+    async function getJsforceConnection(authFields: AuthFields): Promise<Connection> {
+      var conn = new jsforce.Connection({
+          instanceUrl : authFields.instanceUrl,
+          accessToken : authFields.accessToken
+      });
+  
+      return conn;
+    }
+
     if (this.org.getOrgId() == '00D15000000GZ4bEAG') {
         throw new SfdxError(messages.getMessage('errorCannotRunPluginInProd'));
     }
 
-    var o2eObjects:string[] = new Array("Account","Contact","Lead")
-    let scrubResult;
+    //if (this.flags.targetusername.substring(0,27) != 'O2E.Dataload@o2ebrands.com.') {
+    if (this.flags.targetusername.substring(0,29) != 'stephanie.wong@o2ebrands.com.') {
+      throw new SfdxError(messages.getMessage('errorInvalidAuthUser'));
+    }
+
+    var o2eObjects:string[] = new Array("Account","Contact","Lead");
+    var o2eFields:string[] = new Array("Email__c","Email");
 
     if (o2eObjects.indexOf(this.flags.object) < 0) {
         throw new SfdxError(messages.getMessage('errorInvalidObject'));
     }
 
+    if (o2eFields.indexOf(this.flags.field) < 0) {
+      throw new SfdxError(messages.getMessage('errorInvalidField'));
+    }
+
+    let scrubResult;
+    let notScrubbedCount = 0;
+
     interface o2eEmails {
-        Id: string;       
-        Email__c: string;
+        Id: string;
+        Email__c?: string;
+        Email?: string;
     }
 
     // this.org is guaranteed because requiresUsername=true, as opposed to supportsUsername
-    const connection = await Connection.create({
-        authInfo: await AuthInfo.create({ username: this.flags.targetusername })
-      });
-    
-    const queryEmails = 'Select Id, ' + this.flags.field + ' From ' + this.flags.object + ' where ' + this.flags.field + '!= \'\' and (not email__c like \'%invalidX\') LIMIT 5';
-    const resultEmails = await connection.query<o2eEmails>(queryEmails);
+    const connection = await getJsforceConnection(this.org.getConnection().getConnectionOptions());
 
-    if (resultEmails.totalSize > 0) {
-        var arr_scrubEmails:any[] = new Array();
-        
+    const queryEmails = 'Select Id, ' + this.flags.field + ' From ' + this.flags.object + ' where ' + this.flags.field + '!= \'\' and (not ' + this.flags.field + ' like \'%invalidX\') order by Id';
+    var resultEmails = await connection.query<o2eEmails>(queryEmails);
+
+    if (resultEmails.records.length > 0) {
+      var arr_scrubEmails:any[] = new Array();
+      var count = resultEmails.records.length;
+
+      while (count > 0) {
         // loop thru all records and scrub email address
-        for (var i=0; i<resultEmails.totalSize; i++) {
-            resultEmails.records[i].Email__c = resultEmails.records[i].Email__c + '.invalidX';
-            console.log(resultEmails.records[i].Id);
-            console.log(resultEmails.records[i].Email__c);
-            arr_scrubEmails.push(resultEmails.records[i]);
+        if (this.flags.object == 'Account') {
+          for (var i=0; i<resultEmails.records.length; i++) {
+              resultEmails.records[i].Email__c = resultEmails.records[i].Email__c + '.invalidX';
+              arr_scrubEmails.push(resultEmails.records[i]);
+          }
+        }
+        else {
+            for (var i=0; i<resultEmails.totalSize; i++) {
+              resultEmails.records[i].Email = resultEmails.records[i].Email + '.invalidX';
+              arr_scrubEmails.push(resultEmails.records[i]);
+          }
         }
 
-        // update records
-        scrubResult = await connection.sobject(this.flags.object).update(arr_scrubEmails);
+        if (!isNullOrUndefined(resultEmails.nextRecordsUrl)) {
+          resultEmails = await connection.queryMore<o2eEmails>(resultEmails.nextRecordsUrl);
+          count = resultEmails.records.length;
+        }
+        else {
+          count = 0;
+        }        
+      }
+
+      console.log('arr_scrubEmails.length ' + arr_scrubEmails.length);
+
+      // update records
+      scrubResult = connection.sobject(this.flags.object).updateBulk(arr_scrubEmails);
+
     }
 
     // Check that all emails are scrubbed
+    const resultEmailsNotScrubbed = await connection.query<o2eEmails>(queryEmails);
     
+    if (resultEmailsNotScrubbed.totalSize > 0) {
+      notScrubbedCount = resultEmailsNotScrubbed.totalSize;
+    }
+
     // Return an object to be displayed with --json
-    return { 
+    return {
         orgId: this.org.getOrgId(),
-        scrubbed: [ 
-            {object: this.flags.object,
-             field: this.flags.field,
-             recordCount: arr_scrubEmails.length,
-             result: scrubResult
-            }
-        ]
-    };
-  }
+        object: this.flags.object,
+        field: this.flags.field,
+        recordScrubbed: arr_scrubEmails.length,
+        recordNotScrubbed: notScrubbedCount
+    };    
+  }  
 }
